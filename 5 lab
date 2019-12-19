@@ -1,1 +1,201 @@
+#include "pch.h"
+#include <iostream>
+#define _USE_MATH_DEFINES
+#include <math.h>
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+#include <iomanip>
+#include <ctime>
+#include <fstream>
+#include <random>
+#include <numeric>
+
+using namespace std;
+//F - vector с чертой 
+void findF(vector<double> signWnoise, double K, double r, vector<double> & a, vector<double> & F)
+{
+
+	F.resize(K);
+	double m = (r - 1) / 2;
+	for (int k = m; k < K - m - 1; k++)
+	{
+		F[k] = 1;
+		double sum = 0;
+		for (int j = k - m; j < k + m; j++)
+		{
+			sum = sum + (a[j + m - k + 1] / signWnoise[j]);
+		}
+		sum = 1 / sum;
+		F[k] = sum;
+	}
+}
+double findO(vector<double>  F, double K, double r)
+{
+	double om = 0;
+	double m = (r - 1) / 2;
+	for (int k = 1; k < K; k++)
+	{
+		om = om + abs(F[k] - F[k - 1]);
+	}
+	return om;
+}
+double findA(vector<double>  F, double K, double r, vector<double>signWnoise)
+{
+	double alf = 0;
+	double m = (r - 1) / 2;
+	for (int k = 0; k < K; k++)
+	{
+		alf = alf + abs(F[k] - signWnoise[k]);
+	}
+	alf = alf / K;
+	return alf;
+}
+double r_double(double right, double left) {
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<double> dis(right, left);
+	return dis(gen);
+}
+
+void generateA(double r, vector<double> &A)
+{
+	double M = (r - 1) / 2;
+
+	A[M] = r_double(0, 1);
+	double sum = A[M];
+	for (int m = 1; m < M; m++)
+	{
+		double sum1 = 0;
+		for (int s = m + 1; s < r - m; s++)
+		{
+			sum1 = sum1 + A[s];
+		}
+		A[m] = 0.5 * r_double(0, abs(1 - sum1));
+		A[r - 1 - m] = A[m];
+		sum = sum + 2 * A[m];
+	}
+	A[0] = 0.5 * (1 - sum);
+	A[r - 1] = A[0];
+}
+int main()
+{
+	setlocale(LC_ALL, "Russian");
+	srand((unsigned int)time(NULL));
+	double xmin = 0;
+	double xmax = M_PI;
+	double A = 0.5 / 2;
+	vector<double>xk(101);
+	vector<double>fk(101);
+	vector<double>signWnoise(101);
+	vector<double>noise(101);
+	double L = 10;
+	double P = 0.95;
+	double e = 0.01;
+	double r = 3;
+	double K = 100;
+	double M = (r - 1) / 2;
+	std::ofstream out;
+	if (r == 3) { out.open("C:\\Users\\Александр\\Desktop\\methods\\lab05\\3.txt"); }
+	else { out.open("C:\\Users\\Александр\\Desktop\\methods\\lab05\\1.txt"); }
+	cout << "k" << setw(12) << "Xk" << setw(12) << "fk" << setw(14) << "signWnoise" << endl;
+	out << "k" << setw(12) << "Xk" << setw(12) << "fk" << setw(14) << "signWnoise" << endl;
+	for (double k = 0; k < 101; k++)
+	{
+		xk[k] = xmin + k * (xmax - xmin) / 100;
+		fk[k] = sin(xk[k]) + 2 * A;
+		noise[k] = r_double(-A, A);
+		signWnoise[k] = fk[k] + noise[k];
+		cout << k << setw(12) << xk[k] << setw(12) << fk[k] << setw(14) << signWnoise[k] << endl;
+		out << k << setw(12) << xk[k] << setw(12) << fk[k] << setw(14) << signWnoise[k] << endl;
+	}
+	out.close();
+	cout << endl;
+	double N = floor(log10(1 - P) / log10(1 - (e / (xmax - xmin))));
+	cout << N << endl;
+	double ly = 0;
+	double distminall = 10000;
+	double Jmin = 10000;
+	double lymin = 0;
+	std::ofstream out1;
+	if (r == 3) { out1.open("C:\\Users\\Александр\\Desktop\\methods\\lab05\\4.txt"); }
+	else { out1.open("C:\\Users\\Александр\\Desktop\\methods\\lab05\\2.txt"); }
+	cout << "ly" << setw(12) << "|" << "J" << setw(12) << "|" << "dist" << setw(20);
+	cout << "|" << "alph" << setw(20) << "|" << "W" << setw(17) << "|" << "d" << endl;
+	out1 << "ly" << setw(12) << "|" << "J" << setw(12) << "|" << "dist" << setw(20);
+	out1 << "|" << "alph" << setw(20) << "|" << "W" << setw(17) << "|" << "d" << endl;
+	for (double l = 0; l < L + 1; l++)
+	{
+		vector<double> F;
+		vector<double> Q(r);
+		double distmin = 100000;
+		ly = l / L;
+		double J = 0;
+		double alfmin = 100000;
+		double omin = 100000;
+		vector<double> Q1(r);
+		for (int i = 0; i < N; i++)
+		{
+			generateA(r, Q);
+			findF(signWnoise, K, r, Q, F);
+			double alf = findA(F, K, r, signWnoise);
+			double om = findO(F, K, r);
+			double dist = abs(om) + abs(alf);
+			if (alfmin > alf && omin > om)
+			{
+				distmin = dist;
+				omin = om;
+				alfmin = alf;
+				for (int t = 0; t < r; t++)
+				{
+					Q1[t] = Q[t];
+				}
+			}
+		}
+		J = ly * omin + (1 - ly) *alfmin;
+		cout << ly << setw(12) << "|" << setw(12) << round(J * 100) / 100 << "|" << setw(12) << distmin;
+		cout << setw(12) << "|" << "[";
+		out1 << ly << setw(12) << "|" << setw(12) << round(J * 100) / 100 << "|" << setw(12) << distmin;
+		out1 << setw(12) << "|" << "[";
+		for (int t = 0; t < r; t++)
+		{
+			if (t != (r - 1))
+			{
+				cout << setw(2) << round(Q1[t] * 100) / 100 << "," << setw(2);
+				out1 << setw(2) << round(Q1[t] * 100) / 100 << "," << setw(2);
+			}
+			else
+			{
+				cout << setw(2) << round(Q1[t] * 100) / 100;
+				out1 << setw(2) << round(Q1[t] * 100) / 100;
+			}
+		}
+		cout << "]" << "|" << setw(12) << omin << "|" << setw(12) << alfmin << endl;
+		out1 << "]" << "|" << setw(12) << omin << "|" << setw(12) << alfmin << endl;
+		out1 << ly << setw(12) << "|" << setw(12) << round(J * 100) / 100 << "|" << setw(12) << round(distmin * 1000) / 1000;
+		out1 << setw(12) << "|" << "[";
+		for (int t = 0; t < r; t++)
+		{
+			if (t != (r - 1))
+			{
+				out1 << setw(2) << round(Q1[t] * 1000) / 1000 << "," << setw(2);
+			}
+			else
+			{
+				out1 << setw(2) << round(Q1[t] * 1000) / 1000;
+			}
+		}
+		out1 << "]" << "|" << setw(12) << omin << "|" << setw(12) << alfmin << endl;
+		if (distmin < distminall)
+		{
+			distminall = distmin;
+			Jmin = J;
+			lymin = ly;
+		}
+	}
+	cout << "\nНаименьшее расстояние : " << distminall << "\n" << "При лямбде = " << lymin << endl;
+	out1 << "\nНаименьшее расстояние : " << distminall << "\n" << "При лямбде = " << lymin << endl;
+	out1.close();
+}
 
